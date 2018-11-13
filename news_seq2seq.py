@@ -4,7 +4,7 @@ import tool as tool
 import time
 
 # data loading
-data_path = 'C:/newscorpus.csv'
+data_path = './newscorpus.csv'
 title, contents = tool.loading_data(data_path, eng=False, num=False, punc=False)
 word_to_ix, ix_to_word = tool.make_dict_all_cut(title + contents, minlength=0, maxlength=3, jamo_delete=True)
 
