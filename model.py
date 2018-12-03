@@ -4,25 +4,24 @@ import tensorflow as tf
 
 # Seq2Seq 기본 클래스
 class Seq2Seq:
-
     logits = None
     outputs = None
     cost = None
     train_op = None
 
-    def __init__(self, vocab_size, n_hidden=128, n_layers=3):
+    def __init__(self, vocab_size, n_hidden=128, n_layers=3, imbedding_size=4):
         self.learning_late = 0.001
 
         self.vocab_size = vocab_size
         self.n_hidden = n_hidden
         self.n_layers = n_layers
 
-        self.enc_input = tf.placeholder(tf.float32, [None, None, self.vocab_size])
-        self.dec_input = tf.placeholder(tf.float32, [None, None, self.vocab_size])
+        self.enc_input = tf.placeholder(tf.float32, [None, None, imbedding_size])
+        self.dec_input = tf.placeholder(tf.float32, [None, None, imbedding_size])
         self.targets = tf.placeholder(tf.int64, [None, None])
 
-        self.weights = tf.Variable(tf.ones([self.n_hidden, self.vocab_size]), name="weights")
-        self.bias = tf.Variable(tf.zeros([self.vocab_size]), name="bias")
+        self.weights = tf.Variable(tf.ones([self.n_hidden,imbedding_size]), name="weights")
+        self.bias = tf.Variable(tf.zeros([imbedding_size]), name="bias")
         self.global_step = tf.Variable(0, trainable=False, name="global_step")
 
         self._build_model()
