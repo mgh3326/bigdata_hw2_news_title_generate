@@ -91,7 +91,6 @@ optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost)
 ######
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
-
 input_batch, output_batch, target_batch = make_batch(seq_data)
 
 for epoch in range(total_epoch):
