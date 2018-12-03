@@ -1,34 +1,26 @@
 #####################################################################
 # Word2Vec 모델을 간단하게 구현해봅니다.
-import os
 
-import tensorflow as tf
 import numpy as np
-import tool as tool
-from model import Seq2Seq
+import tensorflow as tf
 
-import time
+import tool as tool
 
 # data loading
 data_path = './sample.csv'
-title, contents = tool.loading_data(data_path, eng=False, num=False, punc=False)
-# test_title, test_content = tool.loading_data("new_simple.csv", eng=False, num=False, punc=False)
-# for i in range(len(test_title)):
-#     test_title[i] = ""
-test_content = tool.loading_data("test.csv", eng=False, num=False, punc=False)
-test_title = []
-for i in range(len(test_content)):
+title, contents = tool.loading_data(data_path, eng=False, num=False, punc=False)  # 트레이닝 data read
+test_title, test_content = tool.loading_data("new_simple.csv", eng=False, num=False, punc=False)  # 테스트 data read
+for i in range(len(test_title)):  # teset_ title은 예측을 하는것이기 때문에 모두 지웁니다.
     test_title[i] = ""
 word_to_ix, ix_to_word = tool.make_dict_all_cut(title + contents + test_content, minlength=0, maxlength=3,
-                                                jamo_delete=True)
-input = title + contents + test_content
+                                                jamo_delete=True)  # 단어들을 인덱스화 합니다.(워드에서 인덱스 딕셔너리, 인덱스에서 워드 딕셔너리)
+input_title_content = title + contents + test_content
 # 단어 벡터를 분석해볼 임의의 문장들
 # 문장을 전부 합친 후 공백으로 단어들을 나누고 고유한 단어들로 리스트를 만듭니다.
-word_sequence = " ".join(input).split()
-# print(word_sequence)
-word_list = " ".join(input).split()
+word_sequence = " ".join(input_title_content).split()
+word_list = " ".join(input_title_content).split()
 word_list = list(set(word_list))
-word_list.append('<PAD>')
+word_list.append('<PAD>')  # make_dict_all_cut 에서 추가 되므로 Word2Vec에 들어가는 단어 리스트에도 아래의 단어들을 추가해줍니다.
 word_list.append('<S>')
 word_list.append('<E>')
 word_list.append('<UNK>')
@@ -36,7 +28,6 @@ word_list.append('<UNK>')
 # 리스트에서 문자들의 인덱스를 뽑아서 사용하기 위해,
 # 이를 표현하기 위한 연관 배열과, 단어 리스트에서 단어를 참조 할 수 있는 인덱스 배열을 만듭합니다.
 word_dict = {w: i for i, w in enumerate(word_list)}
-# print(word_dict)
 skip_grams = []
 
 for i in range(1, len(word_sequence) - 1):
@@ -44,7 +35,6 @@ for i in range(1, len(word_sequence) - 1):
     # 스킵그램을 만든 후, 저장은 단어의 고유 번호(index)로 저장합니다
     target = word_dict[word_sequence[i]]
     context = [word_dict[word_sequence[i - 1]], word_dict[word_sequence[i + 1]]]
-    # print(context)
     # (target, context[0]), (target, context[1])..
     for w in context:
         skip_grams.append([target, w])
@@ -58,7 +48,6 @@ def random_batch(data, size):
     for i in random_index:
         random_inputs.append(data[i][0])  # target
         random_labels.append([data[i][1]])  # context word
-        print(data[i][1])
     return random_inputs, random_labels
 
 
@@ -66,11 +55,11 @@ def random_batch(data, size):
 # 옵션 설정
 ######
 # 학습을 반복할 횟수
-training_epoch = 300
+training_epoch = 10000
 # 학습률
-learning_rate = 0.1
+learning_rate = 0.01
 # 한 번에 학습할 데이터의 크기
-batch_size = 50
+batch_size = 1000
 # 단어 벡터를 구성할 임베딩 차원의 크기
 # 이 예제에서는 x, y 그래프로 표현하기 쉽게 2 개의 값만 출력하도록 합니다.
 embedding_size = 4
@@ -140,7 +129,7 @@ my_dict = {}
 word_to_vector = {}
 
 for i, label in enumerate(word_list):
-    print([i, label])
+    # print([i, label])
 
     x = trained_embeddings[i]
     my_dict[label] = list(x)
@@ -167,151 +156,24 @@ test_encoderinputs, test_decoderinputs, test_targets_, test_targetweights = \
     tool.make_inputs(test_content, test_title, word_to_ix,
                      encoder_size=encoder_size, decoder_size=decoder_size, shuffle=False)
 
-print(encoderinputs)
+# print(encoderinputs)
 for list_index in encoderinputs:
     for index in list_index:
         word = ix_to_word[index][:3]
-        print(word, word_to_vector[word])  # 3글자만 보게하자
-print("decode")
+#         print(word, word_to_vector[word])  # 3글자만 보게하자
+# print("decode")
 for list_index in decoderinputs:
     for index in list_index:
         word = ix_to_word[index][:3]
-        print(word, word_to_vector[word])  # 3글자만 보게하자
+        # print(word, word_to_vector[word])  # 3글자만 보게하자
 
-
-def train(batch_size=2, epoch=100):
-    model = Seq2Seq(vocab_size)
-
-    with tf.Session() as sess:
-        # TODO: 세션을 로드하고 로그를 위한 summary 저장등의 로직을 Seq2Seq 모델로 넣을 필요가 있음
-        ckpt = tf.train.get_checkpoint_state("./model2")
-        if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):
-            print("다음 파일에서 모델을 읽는 중 입니다..", ckpt.model_checkpoint_path)
-            model.saver.restore(sess, ckpt.model_checkpoint_path)
-        else:
-            print("새로운 모델을 생성하는 중 입니다.")
-            sess.run(tf.global_variables_initializer())
-
-        writer = tf.summary.FileWriter("./logs", sess.graph)
-        step_time, loss = 0.0, 0.0
-        current_step = 0
-        start = 0
-        end = batch_size
-        encoder_vector = []
-        decoder_vector = []
-
-        while current_step < 10000001:
-
-            if end > len(title):
-                start = 0
-                end = batch_size
-
-            # Get a batch and make a step
-            start_time = time.time()
-            encoder_inputs, decoder_inputs, targets, target_weights = tool.make_batch(encoderinputs[start:end],
-                                                                                      decoderinputs[start:end],
-                                                                                      targets_[start:end],
-                                                                                      targetweights[start:end])
-            # for i in range(batch_size): # 임베딩 해준거
-            #     temp_encoder = []
-            #     temp_decoder = []
-            #     for j in range(encoder_size):
-            #         temp_word = ix_to_word[encoder_inputs[j][i]][:3]
-            #
-            #         temp_encoder.append(word_to_vector[temp_word])
-            #     for j in range(decoder_size):
-            #         temp_word = ix_to_word[decoder_inputs[j][i]][:3]
-            #         temp_decoder.append(word_to_vector[temp_word])
-            #     encoder_vector.append(np.array(temp_encoder))
-            #     decoder_vector.append(np.array(temp_decoder))
-
-            for i in range(batch_size):  # Onehot
-                temp_encoder = []
-                temp_decoder = []
-                for j in range(encoder_size):
-                    temp_encoder.append(np.eye(vocab_size)[encoder_inputs[j][i]])
-                encoder_vector.append(temp_encoder)
-
-                #
-                #         temp_encoder.append(word_to_vector[temp_word])
-                for j in range(decoder_size):
-                    temp_decoder.append(np.eye(vocab_size)[decoder_inputs[j][i]])
-                decoder_vector.append(temp_decoder)
-
-            #         temp_word = ix_to_word[decoder_inputs[j][i]][:3]
-            #         temp_decoder.append(word_to_vector[temp_word])
-            #     encoder_vector.append(np.array(temp_encoder))
-            #     decoder_vector.append(np.array(temp_decoder))
-            # for i in range(encoder_size):
-            #
-            #     temp_encoder = []
-            #     for j in range(batch_size):
-            #         temp_word = ix_to_word[encoder_inputs[i][j]][:3]
-            #         temp_encoder.append(word_to_vector[temp_word])
-            #     encoder_vector.append(np.array(temp_encoder))
-            #
-            # for i in range(decoder_size):
-            #     temp_decoder = []
-            #     for j in range(batch_size):
-            #         temp_word = ix_to_word[decoder_inputs[i][j]][:3]
-            #         temp_decoder.append(word_to_vector[temp_word])
-            #     decoder_vector.append(np.array(temp_decoder))
-
-            # for step in range(total_batch * epoch):
-            #     enc_input, dec_input, targets = dialog.next_batch(batch_size)
-
-            _, loss = model.train(sess, encoder_vector, decoder_vector, targets)
-
-            if (step + 1) % 100 == 0:
-                model.write_logs(sess, writer, encoder_inputs, decoder_inputs, targets)
-
-                print('Step:', '%06d' % model.global_step.eval(),
-                      'cost =', '{:.6f}'.format(loss))
-
-        checkpoint_path = os.path.join("./model2", "news.ckpt")
-        model.saver.save(sess, checkpoint_path, global_step=model.global_step)
-
-    print('최적화 완료!')
-
-
-# def test(dialog, batch_size=100):
-#     print("\n=== 예측 테스트 ===")
-#
-#     model = Seq2Seq(dialog.vocab_size)
-#
-#     with tf.Session() as sess:
-#         ckpt = tf.train.get_checkpoint_state(FLAGS.train_dir)
-#         print("다음 파일에서 모델을 읽는 중 입니다..", ckpt.model_checkpoint_path)
-#         model.saver.restore(sess, ckpt.model_checkpoint_path)
-#
-#         enc_input, dec_input, targets = dialog.next_batch(batch_size)
-#
-#         expect, outputs, accuracy = model.test(sess, enc_input, dec_input, targets)
-#
-#         expect = dialog.decode(expect)
-#         outputs = dialog.decode(outputs)
-#
-#         pick = random.randrange(0, len(expect) / 2)
-#         input = dialog.decode([dialog.examples[pick * 2]], True)
-#         expect = dialog.decode([dialog.examples[pick * 2 + 1]], True)
-#         outputs = dialog.cut_eos(outputs[pick])
-#
-#         print("\n정확도:", accuracy)
-#         print("랜덤 결과\n")
-#         print("    입력값:", input)
-#         print("    실제값:", expect)
-#         print("    예측값:", ' '.join(outputs))
-#
-
-
-# train()
 learning_rate = 0.001
 n_hidden = 300
 total_epoch = 500
 # 입력과 출력의 형태가 one-hot 인코딩으로 같으므로 크기도 같다.
 n_class = n_input = vocab_size
-enc_input = tf.placeholder(tf.float32, [None, None, 4])
-dec_input = tf.placeholder(tf.float32, [None, None, 4])
+enc_input = tf.placeholder(tf.float32, [None, None, embedding_size])
+dec_input = tf.placeholder(tf.float32, [None, None, embedding_size])
 # [batch size, time steps]
 targets = tf.placeholder(tf.int32, [None, None])
 
@@ -338,9 +200,9 @@ model = tf.layers.dense(outputs, n_class, activation=None)
 
 cost = tf.reduce_mean(
     tf.nn.sparse_softmax_cross_entropy_with_logits(
-        logits=model, labels=targets))
+        logits=model, labels=targets))  # sparse_softmax_cross_entropy_with_logits
 
-optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost)
+optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost)  # AdamOptimizer 최적화 방법
 
 #########
 # 신경망 모델 학습
@@ -352,9 +214,10 @@ end = batch_size
 encoder_inputs, decoder_inputs, targets_vector, target_weights = tool.make_batch(encoderinputs[start:end],
                                                                                  decoderinputs[start:end],
                                                                                  targets_[start:end],
-                                                                                 targetweights[start:end])
+                                                                                 targetweights[
+                                                                                 start:end])  # 인코더 데이터, 디코터 데이터, 타겟 데이터를 가져옵니다.
 encoder_vector = []
-decoder_vector = []
+decoder_vector = []  # 위 데이터는 transpose해서 사용해주어야합니다.
 for i in range(batch_size):  # 임베딩 해준거
     temp_encoder = []
     temp_decoder = []
@@ -371,19 +234,19 @@ for i in range(batch_size):  # 임베딩 해준거
 targets_vector = np.transpose(targets_vector)
 # input_batch, output_batch, target_batch = make_batch(seq_data)
 
-for epoch in range(total_epoch):
+for epoch in range(total_epoch):  # 학습 시작
     _, loss = sess.run([optimizer, cost],
                        feed_dict={enc_input: encoder_vector,
                                   dec_input: decoder_vector,
                                   targets: targets_vector})
-
-    print('Epoch:', '%04d' % (epoch + 1),
-          'cost =', '{:.6f}'.format(loss))
+    if epoch % 10 == 0:
+        print('Epoch:', '%04d' % (epoch + 1),
+              'cost =', '{:.6f}'.format(loss))
 
 print('최적화 완료!')
 
 
-def translate(num=0):
+def training_result(num=0):  # 학습 결과 확인
     # 이 모델은 입력값과 출력값 데이터로 [영어단어, 한글단어] 사용하지만,
     # 예측시에는 한글단어를 알지 못하므로, 디코더의 입출력값을 의미 없는 값인 P 값으로 채운다.
     # ['word', 'PPPP']
@@ -422,19 +285,19 @@ def translate(num=0):
     # print(result[0])
     result_target = ""
     predict_target = ""
-    translated = ""
+    training_resultd = ""
     for target_index in targets_vector[0]:
         result_target += ix_to_word[target_index]
         result_target += " "
     for result_index in result[0]:
         predict_target += ix_to_word[result_index]
         predict_target += " "
-        translated = (str(num) + "\ntarget : " + result_target + "\npredict : " + predict_target)
+        training_resultd = (str(num) + "\ntarget : " + result_target + "\npredict : " + predict_target)
 
     # 출력의 끝을 의미하는 'E' 이후의 글자들을 제거하고 문자열로 만든다.
     # end = decoded.index('E')
-    return translated
-    # translated = ''.join(decoded[:end])
+    return training_resultd
+    # training_resultd = ''.join(decoded[:end])
 
 
 def test(num=0):
@@ -476,25 +339,25 @@ def test(num=0):
     # print(result[0])
     result_target = ""
     predict_target = ""
-    translated = ""
+    training_resultd = ""
     # for target_index in targets_vector[0]:
     #     result_target += ix_to_word[target_index]
     #     result_target += " "
     for result_index in result[0]:
         predict_target += ix_to_word[result_index]
         predict_target += " "
-    translated = ("Test " + str(num) + "\ntarget : " + predict_target)
+    training_resultd = ("Test " + str(num) + "\ntarget : " + predict_target)
 
     # 출력의 끝을 의미하는 'E' 이후의 글자들을 제거하고 문자열로 만든다.
     # end = decoded.index('E')
-    return translated
+    return training_resultd
 
 
 print('\n===트레이닝 결과 ===')
 for i in range(batch_size):
-    print(translate(i))
+    print(training_result(i))
 print('\n===테스트 ===')
 for i in range(4):
     print(test(i))
 
-# print('word ->', translate())
+# print('word ->', training_result())
