@@ -302,8 +302,8 @@ n_hidden = 128
 total_epoch = 100
 # 입력과 출력의 형태가 one-hot 인코딩으로 같으므로 크기도 같다.
 n_class = n_input = vocab_size
-enc_input = tf.placeholder(tf.float32, [None, None, n_input])
-dec_input = tf.placeholder(tf.float32, [None, None, n_input])
+enc_input = tf.placeholder(tf.float32, [None, None, 4])
+dec_input = tf.placeholder(tf.float32, [None, None, 4])
 # [batch size, time steps]
 targets = tf.placeholder(tf.int32, [None, None])
 
@@ -342,36 +342,37 @@ sess.run(tf.global_variables_initializer())
 start = 0
 end = 2
 encoder_inputs, decoder_inputs, targets_vector, target_weights = tool.make_batch(encoderinputs[start:end],
-                                                                          decoderinputs[start:end],
-                                                                          targets_[start:end],
-                                                                          targetweights[start:end])
+                                                                                 decoderinputs[start:end],
+                                                                                 targets_[start:end],
+                                                                                 targetweights[start:end])
 encoder_vector = []
 decoder_vector = []
-# for i in range(batch_size):  # 임베딩 해준거
-#     temp_encoder = []
-#     temp_decoder = []
-#     for j in range(encoder_size):
-#         temp_word = ix_to_word[encoder_inputs[j][i]][:3]
-#
-#         temp_encoder.append(word_to_vector[temp_word])
-#     for j in range(decoder_size):
-#         temp_word = ix_to_word[decoder_inputs[j][i]][:3]
-#         temp_decoder.append(word_to_vector[temp_word])
-#     encoder_vector.append(np.array(temp_encoder))
-#     decoder_vector.append(np.array(temp_decoder))
-
-for i in range(2):  # Onehot
+batch_size = 2
+for i in range(batch_size):  # 임베딩 해준거
     temp_encoder = []
     temp_decoder = []
     for j in range(encoder_size):
-        temp_encoder.append(np.eye(vocab_size)[encoder_inputs[j][i]])
-    encoder_vector.append(temp_encoder)
+        temp_word = ix_to_word[encoder_inputs[j][i]][:3]
 
-    #
-    #         temp_encoder.append(word_to_vector[temp_word])
+        temp_encoder.append(word_to_vector[temp_word])
     for j in range(decoder_size):
-        temp_decoder.append(np.eye(vocab_size)[decoder_inputs[j][i]])
-    decoder_vector.append(temp_decoder)
+        temp_word = ix_to_word[decoder_inputs[j][i]][:3]
+        temp_decoder.append(word_to_vector[temp_word])
+    encoder_vector.append(np.array(temp_encoder))
+    decoder_vector.append(np.array(temp_decoder))
+
+# for i in range(2):  # Onehot
+#     temp_encoder = []
+#     temp_decoder = []
+#     for j in range(encoder_size):
+#         temp_encoder.append(np.eye(vocab_size)[encoder_inputs[j][i]])
+#     encoder_vector.append(temp_encoder)
+#
+#     #
+#     #         temp_encoder.append(word_to_vector[temp_word])
+#     for j in range(decoder_size):
+#         temp_decoder.append(np.eye(vocab_size)[decoder_inputs[j][i]])
+#     decoder_vector.append(temp_decoder)
 targets_vector = np.transpose(targets_vector)
 # input_batch, output_batch, target_batch = make_batch(seq_data)
 
