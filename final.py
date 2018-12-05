@@ -10,9 +10,11 @@ import tool as tool
 # data loading
 data_path = './sample.csv'
 title, contents = tool.loading_data(data_path, eng=False, num=False, punc=False)  # 트레이닝 data read
-test_title, test_content = tool.loading_data("new_simple.csv", eng=False, num=False, punc=False)  # 테스트 data read
-for i in range(len(test_content)):  # teset_ title은 예측을 하는것이기 때문에 모두 지웁니다.
-    test_title[i] = ""
+# test_title, test_content = tool.loading_data("new_simple.csv", eng=False, num=False, punc=False)  # 테스트 data read
+test_content = tool.loading_test_data("test.csv", eng=False, num=False, punc=False)  # 테스트 data read
+test_title = []
+for i in range(len(test_content)):  # teset_ title은 예측을 하는것이기 때문에 빈 값을 넣어줍니다.
+    test_title.append("")
 word_to_ix, ix_to_word = tool.make_dict_all_cut(title + contents + test_content, minlength=0, maxlength=3,
                                                 jamo_delete=True)  # 단어들을 인덱스화 합니다.(워드에서 인덱스 딕셔너리, 인덱스에서 워드 딕셔너리)
 input_title_content = title + contents + test_content
@@ -27,7 +29,6 @@ kkma = Kkma()
 a = []
 for i in input_title_content:
     for word in kkma.nouns(i):
-
         a.append(word)  # word2vec 단어 사전을 추가해준다.
 word_sequence = " ".join(input_title_content).split()
 word_sequence.extend(a)
@@ -189,7 +190,7 @@ for list_index in decoderinputs:
 
 learning_rate = 0.001
 n_hidden = 300
-total_epoch = 1000
+total_epoch = 2000  # 에포크 숫자
 # 입력과 출력의 형태가 one-hot 인코딩으로 같으므로 크기도 같다.
 n_class = n_input = vocab_size
 enc_input = tf.placeholder(tf.float32, [None, None, embedding_size])
@@ -387,7 +388,7 @@ print('\n===트레이닝 결과 ===')
 for i in range(batch_size):
     print(training_result(i))
 print('\n===테스트 ===')
-for i in range(4):
+for i in range(len(test_content)):
     print(test(i))
 
 # print('word ->', training_result())

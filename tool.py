@@ -27,6 +27,21 @@ def loading_data(data_path, eng=True, num=True, punc=False):
     return title, contents
 
 
+def loading_test_data(data_path, eng=True, num=True, punc=False):
+    # data example : "content"
+    # data format : csv, utf-8
+    corpus = pd.read_table(data_path, sep=",", encoding="utf-8")
+    corpus = np.array(corpus)
+    contents = []
+    for doc in corpus:
+        if type(doc[0]) is not str:
+            continue
+        if len(doc[0]) > 0:
+            tmpcontents = normalize(doc[0], english=eng, number=num, punctuation=punc)
+            contents.append(tmpcontents)
+    return contents
+
+
 def make_dict_all_cut(contents, minlength, maxlength, jamo_delete=False):
     dict = defaultdict(lambda: [])
     for doc in contents:
