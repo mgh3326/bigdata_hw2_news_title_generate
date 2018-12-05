@@ -3,6 +3,7 @@
 
 import numpy as np
 import tensorflow as tf
+from konlpy.tag import Kkma
 
 import tool as tool
 
@@ -10,16 +11,35 @@ import tool as tool
 data_path = './sample.csv'
 title, contents = tool.loading_data(data_path, eng=False, num=False, punc=False)  # 트레이닝 data read
 test_title, test_content = tool.loading_data("new_simple.csv", eng=False, num=False, punc=False)  # 테스트 data read
-for i in range(len(test_title)):  # teset_ title은 예측을 하는것이기 때문에 모두 지웁니다.
+for i in range(len(test_content)):  # teset_ title은 예측을 하는것이기 때문에 모두 지웁니다.
     test_title[i] = ""
 word_to_ix, ix_to_word = tool.make_dict_all_cut(title + contents + test_content, minlength=0, maxlength=3,
                                                 jamo_delete=True)  # 단어들을 인덱스화 합니다.(워드에서 인덱스 딕셔너리, 인덱스에서 워드 딕셔너리)
 input_title_content = title + contents + test_content
 # 단어 벡터를 분석해볼 임의의 문장들
 # 문장을 전부 합친 후 공백으로 단어들을 나누고 고유한 단어들로 리스트를 만듭니다.
+
+# konlp 객체 생성
+print("konlp로 명사 추출하는중 입니다")
+kkma = Kkma()
+# 명사만 뽑은 단어 사전을  추가로 해서 word2vec을 함으로써 단어 임베딩의 효과를 높힘
+
+a = []
+for i in input_title_content:
+    for word in kkma.nouns(i):
+
+        a.append(word)  # word2vec 단어 사전을 추가해준다.
 word_sequence = " ".join(input_title_content).split()
+word_sequence.extend(a)
+word_sequence.append('<PAD>')  # make_dict_all_cut 에서 추가 되므로 Word2Vec에 들어가는 단어 리스트에도 아래의 단어들을 추가해줍니다.
+word_sequence.append('<S>')
+word_sequence.append('<E>')
+word_sequence.append('<UNK>')
 word_list = " ".join(input_title_content).split()
+word_list.extend(a)
+
 word_list = list(set(word_list))
+
 word_list.append('<PAD>')  # make_dict_all_cut 에서 추가 되므로 Word2Vec에 들어가는 단어 리스트에도 아래의 단어들을 추가해줍니다.
 word_list.append('<S>')
 word_list.append('<E>')
@@ -55,7 +75,7 @@ def random_batch(data, size):
 # 옵션 설정
 ######
 # 학습을 반복할 횟수
-training_epoch = 10000
+training_epoch = 6000
 # 학습률
 learning_rate = 0.01
 # 한 번에 학습할 데이터의 크기
@@ -113,7 +133,7 @@ with tf.Session() as sess:
                                feed_dict={inputs: batch_inputs,
                                           labels: batch_labels})
 
-        if step % 10 == 0:
+        if step % 100 == 0:
             print("loss at step ", step, ": ", loss_val)
 
     # matplot 으로 출력하여 시각적으로 확인해보기 위해
@@ -169,7 +189,7 @@ for list_index in decoderinputs:
 
 learning_rate = 0.001
 n_hidden = 300
-total_epoch = 500
+total_epoch = 1000
 # 입력과 출력의 형태가 one-hot 인코딩으로 같으므로 크기도 같다.
 n_class = n_input = vocab_size
 enc_input = tf.placeholder(tf.float32, [None, None, embedding_size])
@@ -179,16 +199,20 @@ targets = tf.placeholder(tf.int32, [None, None])
 
 # 인코더 셀을 구성한다.
 with tf.variable_scope('encode'):
-    enc_cell = tf.nn.rnn_cell.BasicRNNCell(n_hidden)
+    # enc_cell = tf.nn.rnn_cell.BasicRNNCell(n_hidden)
+    enc_cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)  # BasicRNNCell to BasicLSTMCell
     enc_cell = tf.nn.rnn_cell.DropoutWrapper(enc_cell, output_keep_prob=0.5)
-
+    # enc_cell = tf.nn.rnn_cell.MultiRNNCell(enc_cell)
     outputs, enc_states = tf.nn.dynamic_rnn(enc_cell, enc_input,
                                             dtype=tf.float32)
 
 # 디코더 셀을 구성한다.
 with tf.variable_scope('decode'):
-    dec_cell = tf.nn.rnn_cell.BasicRNNCell(n_hidden)
+    # dec_cell = tf.nn.rnn_cell.BasicRNNCell(n_hidden)
+    dec_cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)
+
     dec_cell = tf.nn.rnn_cell.DropoutWrapper(dec_cell, output_keep_prob=0.5)
+    # dec_cell = tf.nn.rnn_cell.MultiRNNCell(dec_cell)
 
     # Seq2Seq 모델은 인코더 셀의 최종 상태값을
     # 디코더 셀의 초기 상태값으로 넣어주는 것이 핵심.
@@ -227,6 +251,12 @@ for i in range(batch_size):  # 임베딩 해준거
         temp_encoder.append(word_to_vector[temp_word])
     for j in range(decoder_size):
         temp_word = ix_to_word[decoder_inputs[j][i]][:3]
+        # if temp_word == "<PA" : # PAD 갯수 줄이기
+        #     if j==5:
+        #         break
+        #     elif j==8:
+        #         break
+
         temp_decoder.append(word_to_vector[temp_word])
     encoder_vector.append(np.array(temp_encoder))
     decoder_vector.append(np.array(temp_decoder))
@@ -239,7 +269,7 @@ for epoch in range(total_epoch):  # 학습 시작
                        feed_dict={enc_input: encoder_vector,
                                   dec_input: decoder_vector,
                                   targets: targets_vector})
-    if epoch % 10 == 0:
+    if epoch % 100 == 0:
         print('Epoch:', '%04d' % (epoch + 1),
               'cost =', '{:.6f}'.format(loss))
 

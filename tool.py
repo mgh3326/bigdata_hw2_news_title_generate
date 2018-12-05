@@ -90,6 +90,16 @@ def make_inputs(rawinputs, rawtargets, word_to_ix, encoder_size, decoder_size, s
         tmp_decoder_input = [word_to_ix[v] for idx, v in enumerate(rawtarget.split()) if
                              idx < decoder_size - 1 and v in word_to_ix]
         decoder_padd_size = decoder_size - len(tmp_decoder_input) - 1
+
+        # 패딩 -> 버켓팅 [5,5],[8,8] [max,max]
+        # if len(tmp_decoder_input) <= 5:
+        #     if decoder_size > 8:
+        #         decoder_padd_size = 5
+        # elif len(tmp_decoder_input) <= 8:
+        #     if decoder_size > 8:
+        #         decoder_padd_size = 8
+        # else:
+        #     decoder_padd_size = decoder_size - len(tmp_decoder_input) - 1
         decoder_padd = [word_to_ix['<PAD>']] * decoder_padd_size
         decoder_input.append([word_to_ix['<S>']] + tmp_decoder_input + decoder_padd)
         targets.append(tmp_decoder_input + [word_to_ix['<E>']] + decoder_padd)
@@ -140,7 +150,7 @@ def make_batch(encoder_inputs, decoder_inputs, targets, target_weights):
 # text normalizing function                        #
 ####################################################
 
-# normalize index
+# normalize indexPAD
 kor_begin = 44032
 kor_end = 55199
 jaum_begin = 12593
